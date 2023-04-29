@@ -169,6 +169,8 @@ class StableDiffusionImg2ImgPipeline(DiffusionPipeline):
 
         self.fixed_noise = None
         self.stochastic_sampling = stochastic_sampling
+        # Sliced attention for additional memory savings
+        self.enable_attention_slicing()
 
         print("Stochastic Sampling: ", self.stochastic_sampling)
 
