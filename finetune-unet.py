@@ -100,6 +100,17 @@ def main(args):
 
     # Load pretrained UNet layers
     unet = get_unet(args.pretrained_model_name_or_path, args.revision, resolution=args.resolution)
+    
+    if args.enable_xformers_memory_efficient_attention:
+      import xformers
+      # xformers_version = version.parse(xformers.__version__)
+      # if xformers_version == version.parse("0.0.16"):
+      #     logger.warn(
+      #         "xFormers 0.0.16 cannot be used for training in some GPUs. If you observe problems during training, please update xFormers to at least 0.0.17. See https://huggingface.co/docs/diffusers/main/en/optimization/xformers for more details." 
+      #     )
+      unet.enable_xformers_memory_efficient_attention()
+    # else:
+    #     raise ValueError("xformers is not available. Make sure it is installed correctly")
 
     if args.custom_chkpt is not None:
         print("Loading ", args.custom_chkpt)
@@ -125,7 +136,7 @@ def main(args):
         adapter.load_state_dict(new_state_dict)
         adapter = adapter.cuda()
 
-    #adapter.requires_grad_(True)
+    adapter.requires_grad_(False)
 
     vae.requires_grad_(False)
 
@@ -276,7 +287,7 @@ def main(args):
 
     # Train!
     total_batch_size = args.train_batch_size * accelerator.num_processes * args.gradient_accumulation_steps
-
+    print("Here")
     logger.info("***** Running training *****")
     logger.info(f"  Num examples = {len(train_dataset)}")
     logger.info(f"  Num batches each epoch = {len(train_dataloader)}")
@@ -320,6 +331,8 @@ def main(args):
 
     latest_chkpt_step = 0
     for epoch in range(args.epoch, args.num_train_epochs):
+        print("\nOk, bitch")
+        torch.cuda.empty_cache()
         unet.train()
         adapter.train()
         first_batch = True
@@ -394,7 +407,8 @@ def main(args):
                     accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
                 optimizer.step()
                 lr_scheduler.step()
-                optimizer.zero_grad()
+                # optimizer.zero_grad()
+                optimizer.zero_grad(set_to_none=args.set_grads_to_none)
 
             # Checks if the accelerator has performed an optimization step behind the scenes
             if accelerator.sync_gradients:
